@@ -525,7 +525,7 @@ function updateSaveBar() {
   }
 }
 
-let lastSaveTime = null;
+let lastCommitSha = null;
 
 // ── Save Changes ──
 async function saveChanges() {
@@ -536,6 +536,7 @@ async function saveChanges() {
   showStatus('Saving your changes...');
 
   try {
+    let commitSha = null;
     for (const i of modified) {
       const f = files[i];
       const content = serializeFile(f);
@@ -558,11 +559,12 @@ async function saveChanges() {
       }
       const result = await res.json();
       f.sha = result.content.sha;
+      commitSha = result.commit.sha;
       f.originalBody = f.body;
       f.originalTitle = f.meta.title || '';
     }
 
-    lastSaveTime = new Date().toISOString();
+    lastCommitSha = commitSha;
     modified.clear();
     document.querySelectorAll('.chapter-item.modified').forEach(el => el.classList.remove('modified'));
     updateSaveBar();
@@ -649,12 +651,11 @@ async function buildPdf() {
 }
 
 async function waitForRun() {
-  const cutoff = lastSaveTime || new Date(Date.now() - 30000).toISOString();
   for (let attempt = 0; attempt < 20; attempt++) {
     const data = await ghGet(`repos/${REPO}/actions/workflows/build-pdf.yml/runs?per_page=5&branch=main`, true);
-    if (data.workflow_runs) {
-      // Find a run created AFTER we saved
-      const run = data.workflow_runs.find(r => r.created_at > cutoff);
+    if (data.workflow_runs && lastCommitSha) {
+      // Find a run built from the exact commit we just saved
+      const run = data.workflow_runs.find(r => r.head_sha === lastCommitSha);
       if (run) return run.id;
     }
     await sleep(2000);
