@@ -586,36 +586,48 @@ async function buildPdf() {
   const hadChanges = modified.size > 0;
 
   try {
+    // Record time BEFORE saving so we catch the run triggered by the push
+    const beforeTime = new Date().toISOString();
+
     if (hadChanges) {
       btn.textContent = 'Saving...';
       showStatus('Saving changes...');
       await saveChanges();
+    } else {
+      // No changes — just download the most recent successful build
+      btn.textContent = 'Fetching PDF...';
+      showStatus('Fetching latest PDF...');
+      const data = await ghGet(`repos/${REPO}/actions/workflows/build-pdf.yml/runs?per_page=1&branch=main&status=completed&conclusion=success`, true);
+      if (data.workflow_runs && data.workflow_runs.length > 0) {
+        const artData = await ghGet(`repos/${REPO}/actions/runs/${data.workflow_runs[0].id}/artifacts`, true);
+        const bookArt = artData.artifacts?.find(a => a.name === 'book-pdf');
+        if (bookArt) {
+          await downloadArtifact(bookArt.archive_download_url);
+          showStatus('PDF downloaded!');
+          setTimeout(() => hideStatus(), 4000);
+        } else {
+          showStatus('No PDF found. Save a change first.');
+        }
+      } else {
+        showStatus('No builds found. Save a change first.');
+      }
+      btn.disabled = false;
+      btn.textContent = 'Build PDF';
+      return;
     }
 
     btn.textContent = 'Building...';
     showStatus('PDF is building...');
 
-    const saveTime = new Date().toISOString();
-
-    // If no changes were saved, trigger a manual build
-    if (!hadChanges) {
-      await fetch(`${API}/repos/${REPO}/actions/workflows/build-pdf.yml/dispatches`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ref: 'main' }),
-      });
-    }
-
-    // Poll workflow runs for one that started after save AND is completed with an artifact
+    // Poll for a completed build-pdf run created AFTER beforeTime
     let downloadUrl = null;
     for (let attempt = 0; attempt < 30; attempt++) {
       await sleep(3000);
       const data = await ghGet(`repos/${REPO}/actions/workflows/build-pdf.yml/runs?per_page=5&branch=main`, true);
       if (data.workflow_runs) {
         for (const run of data.workflow_runs) {
-          if (run.created_at < saveTime) continue;
+          if (run.created_at < beforeTime) continue;
           if (run.status !== 'completed' || run.conclusion !== 'success') continue;
-          // This run completed after our save — check for artifact
           const artData = await ghGet(`repos/${REPO}/actions/runs/${run.id}/artifacts`, true);
           const bookArt = artData.artifacts?.find(a => a.name === 'book-pdf');
           if (bookArt) {
