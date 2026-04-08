@@ -587,59 +587,48 @@ async function buildPdf() {
 
   try {
     if (hadChanges) {
-      // Save first — this push triggers the build automatically
       btn.textContent = 'Saving...';
       showStatus('Saving changes...');
       await saveChanges();
+    }
 
-      btn.textContent = 'Building...';
-      showStatus('PDF is building...');
+    btn.textContent = 'Building...';
+    showStatus('PDF is building...');
 
-      // Wait for GitHub to register the run from the push
+    // Record what artifact IDs exist right now so we can find the NEW one
+    const existingArtifacts = new Set();
+    const existingData = await ghGet(`repos/${REPO}/actions/artifacts?per_page=10`, true);
+    if (existingData.artifacts) {
+      existingData.artifacts.forEach(a => existingArtifacts.add(a.id));
+    }
+
+    // If no changes were saved, trigger a manual build
+    if (!hadChanges) {
+      await fetch(`${API}/repos/${REPO}/actions/workflows/build-pdf.yml/dispatches`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ref: 'main' }),
+      });
+    }
+
+    // Poll for a NEW artifact that didn't exist before
+    let newArtifact = null;
+    for (let attempt = 0; attempt < 30; attempt++) {
       await sleep(3000);
-
-      const runId = await waitForRun();
-      if (!runId) {
-        showStatus('Could not find build. Try again.');
-        btn.disabled = false;
-        btn.textContent = 'Build PDF';
-        return;
+      const data = await ghGet(`repos/${REPO}/actions/artifacts?per_page=5`, true);
+      if (data.artifacts) {
+        newArtifact = data.artifacts.find(a => a.name === 'book-pdf' && !existingArtifacts.has(a.id));
+        if (newArtifact) break;
       }
+    }
 
-      const conclusion = await pollRun(runId);
-      if (conclusion !== 'success') {
-        showStatus('Build failed. Please try again.');
-        btn.disabled = false;
-        btn.textContent = 'Build PDF';
-        return;
-      }
-
+    if (newArtifact) {
       showStatus('Downloading PDF...');
-      const artifactUrl = await getArtifact(runId);
-      if (artifactUrl) {
-        await downloadArtifact(artifactUrl);
-        showStatus('PDF downloaded!');
-        setTimeout(() => hideStatus(), 4000);
-      } else {
-        showStatus('Build succeeded but no PDF found.');
-      }
+      await downloadArtifact(newArtifact.archive_download_url);
+      showStatus('PDF downloaded!');
+      setTimeout(() => hideStatus(), 4000);
     } else {
-      // No changes — download latest existing artifact
-      btn.textContent = 'Fetching PDF...';
-      showStatus('Fetching latest PDF...');
-      const data = await ghGet(`repos/${REPO}/actions/workflows/build-pdf.yml/runs?per_page=1&branch=main&status=completed`, true);
-      if (data.workflow_runs && data.workflow_runs.length > 0 && data.workflow_runs[0].conclusion === 'success') {
-        const artifactUrl = await getArtifact(data.workflow_runs[0].id);
-        if (artifactUrl) {
-          await downloadArtifact(artifactUrl);
-          showStatus('PDF downloaded!');
-          setTimeout(() => hideStatus(), 4000);
-        } else {
-          showStatus('No PDF found. Make a change and save first.');
-        }
-      } else {
-        showStatus('No successful build found. Make a change and save first.');
-      }
+      showStatus('Build timed out. Try again.');
     }
   } catch (e) {
     showStatus('Error: ' + e.message);
@@ -650,44 +639,6 @@ async function buildPdf() {
   btn.textContent = 'Build PDF';
 }
 
-async function waitForRun() {
-  console.log('Waiting for run with commit SHA:', lastCommitSha);
-  for (let attempt = 0; attempt < 20; attempt++) {
-    const data = await ghGet(`repos/${REPO}/actions/workflows/build-pdf.yml/runs?per_page=5&branch=main`, true);
-    if (data.workflow_runs && lastCommitSha) {
-      const run = data.workflow_runs.find(r => r.head_sha === lastCommitSha);
-      if (run) {
-        console.log('Found run:', run.id, 'status:', run.status, 'sha:', run.head_sha?.slice(0, 8));
-        return run.id;
-      }
-    }
-    await sleep(2000);
-  }
-  return null;
-}
-
-async function pollRun(runId) {
-  for (let attempt = 0; attempt < 60; attempt++) {
-    const data = await ghGet(`repos/${REPO}/actions/runs/${runId}`, true);
-    if (data.status === 'completed') return data.conclusion;
-    await sleep(2000);
-  }
-  return 'timeout';
-}
-
-async function getArtifact(runId) {
-  // Artifact may not be available immediately after run completes
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const data = await ghGet(`repos/${REPO}/actions/runs/${runId}/artifacts`, true);
-    if (data.artifacts && data.artifacts.length > 0) {
-      const art = data.artifacts.find(a => a.name === 'book-pdf') || data.artifacts[0];
-      console.log('Downloading artifact:', art.id, art.name, 'from run:', runId);
-      return art.archive_download_url;
-    }
-    await sleep(2000);
-  }
-  return null;
-}
 
 async function downloadArtifact(url) {
   const res = await fetch(url, {
