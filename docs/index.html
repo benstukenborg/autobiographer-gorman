@@ -616,14 +616,17 @@ async function buildPdf() {
     btn.textContent = 'Building...';
     showStatus('PDF is building...');
 
-    // Poll for a completed build-pdf run matching the exact commit we saved
+    // Wait for GitHub to register the run, then poll until it completes
     let downloadUrl = null;
-    for (let attempt = 0; attempt < 30; attempt++) {
-      await sleep(3000);
+    let foundRunId = null;
+    for (let attempt = 0; attempt < 40; attempt++) {
+      await sleep(foundRunId ? 1000 : 2000);
       const data = await ghGet(`repos/${REPO}/actions/workflows/build-pdf.yml/runs?per_page=5&branch=main&head_sha=${lastCommitSha}`, true);
       if (data.workflow_runs) {
         for (const run of data.workflow_runs) {
-          if (run.status !== 'completed' || run.conclusion !== 'success') continue;
+          foundRunId = run.id;
+          if (run.status !== 'completed') continue;
+          if (run.conclusion !== 'success') continue;
           const artData = await ghGet(`repos/${REPO}/actions/runs/${run.id}/artifacts`, true);
           const bookArt = artData.artifacts?.find(a => a.name === 'book-pdf');
           if (bookArt) {
