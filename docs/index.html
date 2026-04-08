@@ -205,24 +205,34 @@
     z-index: 100;
   }
   #bottom-bar.visible { display: flex; }
+  #save-bar { display: none; }
+  #save-bar.visible { display: contents; }
   #change-count {
     font-family: 'Space Grotesk', sans-serif;
     font-size: 13px;
     color: #97928C;
   }
-  #build-btn {
+  .bar-btn {
     padding: 10px 28px;
     font-family: 'Space Grotesk', sans-serif;
     font-size: 14px;
     font-weight: 500;
-    background: #686560;
-    color: #FDFCFA;
     border: none;
     border-radius: 6px;
     cursor: pointer;
   }
-  #build-btn:hover { background: #504d49; }
-  #build-btn:disabled { background: #b0ada8; cursor: not-allowed; }
+  .bar-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  #save-btn {
+    background: #686560;
+    color: #FDFCFA;
+  }
+  #save-btn:hover:not(:disabled) { background: #504d49; }
+  #build-btn {
+    background: transparent;
+    color: #686560;
+    border: 1px solid #d0cdc8;
+  }
+  #build-btn:hover:not(:disabled) { background: #f0eeeb; }
 
   /* ── Status ── */
   #status-bar {
@@ -278,8 +288,11 @@
 </div>
 
 <div id="bottom-bar">
-  <span id="change-count"></span>
-  <button id="build-btn" onclick="buildPdf()">Build PDF</button>
+  <span id="save-bar">
+    <span id="change-count"></span>
+    <button id="save-btn" class="bar-btn" onclick="saveChanges()">Save</button>
+  </span>
+  <button id="build-btn" class="bar-btn" onclick="buildPdf()">Build PDF</button>
 </div>
 
 <div id="status-bar"></div>
@@ -368,6 +381,7 @@ async function loadBook() {
     files.sort((a, b) => a.name.localeCompare(b.name));
     hideStatus();
     renderChapters();
+    showBottomBar();
   } catch (e) {
     showStatus('Error loading book: ' + e.message);
     console.error(e);
@@ -488,25 +502,29 @@ function checkModified(i) {
 }
 
 function updateBottomBar() {
-  const bar = document.getElementById('bottom-bar');
+  const saveBar = document.getElementById('save-bar');
   const count = document.getElementById('change-count');
   if (modified.size > 0) {
-    bar.classList.add('visible');
+    saveBar.classList.add('visible');
     count.textContent = `${modified.size} file${modified.size > 1 ? 's' : ''} modified`;
   } else {
-    bar.classList.remove('visible');
+    saveBar.classList.remove('visible');
   }
 }
 
-// ── Build PDF ──
-async function buildPdf() {
-  const btn = document.getElementById('build-btn');
+function showBottomBar() {
+  document.getElementById('bottom-bar').classList.add('visible');
+}
+
+// ── Save Changes ──
+async function saveChanges() {
+  if (modified.size === 0) return;
+  const btn = document.getElementById('save-btn');
   btn.disabled = true;
-  btn.textContent = 'Saving changes...';
+  btn.textContent = 'Saving...';
   showStatus('Saving your changes...');
 
   try {
-    // Commit each modified file
     for (const i of modified) {
       const f = files[i];
       const content = serializeFile(f);
@@ -537,41 +555,75 @@ async function buildPdf() {
     document.querySelectorAll('.chapter-item.modified').forEach(el => el.classList.remove('modified'));
     updateBottomBar();
 
-    showStatus('Changes saved. Waiting for PDF build...');
-    btn.textContent = 'Building PDF...';
+    showStatus('Changes saved!');
+    setTimeout(() => hideStatus(), 3000);
+  } catch (e) {
+    showStatus('Error saving: ' + e.message);
+  }
 
-    // Wait a moment for GitHub to trigger the action
+  btn.disabled = false;
+  btn.textContent = 'Save';
+}
+
+// ── Build PDF ──
+async function buildPdf() {
+  const btn = document.getElementById('build-btn');
+  btn.disabled = true;
+
+  try {
+    // Save any unsaved changes first
+    if (modified.size > 0) {
+      btn.textContent = 'Saving changes...';
+      showStatus('Saving changes before building...');
+      await saveChanges();
+    }
+
+    btn.textContent = 'Triggering build...';
+    showStatus('Triggering PDF build...');
+
+    // Trigger the workflow manually
+    await fetch(`${API}/repos/${REPO}/actions/workflows/build-pdf.yml/dispatches`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ref: 'main' }),
+    });
+
+    // Wait a moment for GitHub to start the action
     await sleep(3000);
 
     // Poll for the workflow run
     const runId = await waitForRun();
     if (!runId) {
-      showStatus('Could not find build run. Check <a href="https://github.com/' + REPO + '/actions" target="_blank">Actions</a> manually.');
+      showStatus('Could not find build run. Try again in a moment.');
       btn.disabled = false;
       btn.textContent = 'Build PDF';
       return;
     }
 
     showStatus('PDF is building...');
+    btn.textContent = 'Building...';
 
     // Poll until complete
     const conclusion = await pollRun(runId);
     if (conclusion !== 'success') {
-      showStatus('Build failed. Check <a href="https://github.com/' + REPO + '/actions/runs/' + runId + '" target="_blank">the run</a> for details.');
+      showStatus('Build failed. Please try again.');
       btn.disabled = false;
       btn.textContent = 'Build PDF';
       return;
     }
 
     // Get artifact
-    showStatus('Build complete! Preparing download...');
+    showStatus('Build complete! Downloading...');
     const artifactUrl = await getArtifact(runId);
     if (artifactUrl) {
       await downloadArtifact(artifactUrl);
       showStatus('PDF downloaded!');
       setTimeout(() => hideStatus(), 4000);
     } else {
-      showStatus('Build succeeded but no artifact found. Check <a href="https://github.com/' + REPO + '/actions/runs/' + runId + '" target="_blank">the run</a>.');
+      showStatus('Build succeeded but no file found. Try again.');
     }
   } catch (e) {
     showStatus('Error: ' + e.message);
@@ -617,9 +669,48 @@ async function downloadArtifact(url) {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error('Failed to download artifact');
-  const blob = await res.blob();
+  const arrayBuf = await res.arrayBuffer();
+  const data = new Uint8Array(arrayBuf);
+
+  // Find local file header
+  let offset = 0;
+  while (offset < data.length - 4) {
+    if (data[offset] === 0x50 && data[offset+1] === 0x4b && data[offset+2] === 0x03 && data[offset+3] === 0x04) {
+      const compressionMethod = data[offset+8] | (data[offset+9] << 8);
+      const compressedSize = data[offset+18] | (data[offset+19] << 8) | (data[offset+20] << 16) | (data[offset+21] << 24);
+      const fnameLen = data[offset+26] | (data[offset+27] << 8);
+      const extraLen = data[offset+28] | (data[offset+29] << 8);
+      const dataStart = offset + 30 + fnameLen + extraLen;
+      const compressedData = data.slice(dataStart, dataStart + compressedSize);
+
+      let pdfBlob;
+      if (compressionMethod === 0) {
+        pdfBlob = new Blob([compressedData], { type: 'application/pdf' });
+      } else if (compressionMethod === 8) {
+        const ds = new DecompressionStream('deflate-raw');
+        const writer = ds.writable.getWriter();
+        writer.write(compressedData);
+        writer.close();
+        pdfBlob = await new Response(ds.readable).blob();
+      }
+
+      if (pdfBlob) {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(pdfBlob);
+        a.download = `${BOOK}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        return;
+      }
+      break;
+    }
+    offset++;
+  }
+
+  // Fallback
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
+  a.href = URL.createObjectURL(new Blob([data]));
   a.download = `${BOOK}.zip`;
   document.body.appendChild(a);
   a.click();
