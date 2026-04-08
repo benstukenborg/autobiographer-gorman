@@ -651,12 +651,15 @@ async function buildPdf() {
 }
 
 async function waitForRun() {
+  console.log('Waiting for run with commit SHA:', lastCommitSha);
   for (let attempt = 0; attempt < 20; attempt++) {
     const data = await ghGet(`repos/${REPO}/actions/workflows/build-pdf.yml/runs?per_page=5&branch=main`, true);
     if (data.workflow_runs && lastCommitSha) {
-      // Find a run built from the exact commit we just saved
       const run = data.workflow_runs.find(r => r.head_sha === lastCommitSha);
-      if (run) return run.id;
+      if (run) {
+        console.log('Found run:', run.id, 'status:', run.status, 'sha:', run.head_sha?.slice(0, 8));
+        return run.id;
+      }
     }
     await sleep(2000);
   }
@@ -673,9 +676,15 @@ async function pollRun(runId) {
 }
 
 async function getArtifact(runId) {
-  const data = await ghGet(`repos/${REPO}/actions/runs/${runId}/artifacts`, true);
-  if (data.artifacts && data.artifacts.length > 0) {
-    return data.artifacts[0].archive_download_url;
+  // Artifact may not be available immediately after run completes
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const data = await ghGet(`repos/${REPO}/actions/runs/${runId}/artifacts`, true);
+    if (data.artifacts && data.artifacts.length > 0) {
+      const art = data.artifacts.find(a => a.name === 'book-pdf') || data.artifacts[0];
+      console.log('Downloading artifact:', art.id, art.name, 'from run:', runId);
+      return art.archive_download_url;
+    }
+    await sleep(2000);
   }
   return null;
 }
