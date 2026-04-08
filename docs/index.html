@@ -525,6 +525,8 @@ function updateSaveBar() {
   }
 }
 
+let lastSaveTime = null;
+
 // ── Save Changes ──
 async function saveChanges() {
   if (modified.size === 0) return;
@@ -560,6 +562,7 @@ async function saveChanges() {
       f.originalTitle = f.meta.title || '';
     }
 
+    lastSaveTime = new Date().toISOString();
     modified.clear();
     document.querySelectorAll('.chapter-item.modified').forEach(el => el.classList.remove('modified'));
     updateSaveBar();
@@ -646,12 +649,13 @@ async function buildPdf() {
 }
 
 async function waitForRun() {
-  for (let attempt = 0; attempt < 15; attempt++) {
-    const data = await ghGet(`repos/${REPO}/actions/workflows/build-pdf.yml/runs?per_page=1&branch=main`, true);
-    if (data.workflow_runs && data.workflow_runs.length > 0) {
-      const run = data.workflow_runs[0];
-      const age = Date.now() - new Date(run.created_at).getTime();
-      if (age < 120000) return run.id;
+  const cutoff = lastSaveTime || new Date(Date.now() - 30000).toISOString();
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const data = await ghGet(`repos/${REPO}/actions/workflows/build-pdf.yml/runs?per_page=5&branch=main`, true);
+    if (data.workflow_runs) {
+      // Find a run created AFTER we saved
+      const run = data.workflow_runs.find(r => r.created_at > cutoff);
+      if (run) return run.id;
     }
     await sleep(2000);
   }
