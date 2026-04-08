@@ -569,30 +569,33 @@ async function saveChanges() {
 async function buildPdf() {
   const btn = document.getElementById('build-btn');
   btn.disabled = true;
+  const hadChanges = modified.size > 0;
 
   try {
-    // Save any unsaved changes first
-    if (modified.size > 0) {
+    // Save any unsaved changes first (this push triggers the build automatically)
+    if (hadChanges) {
       btn.textContent = 'Saving changes...';
-      showStatus('Saving changes before building...');
+      showStatus('Saving changes...');
       await saveChanges();
+    } else {
+      // No changes — trigger build manually
+      btn.textContent = 'Triggering build...';
+      showStatus('Triggering PDF build...');
+      await fetch(`${API}/repos/${REPO}/actions/workflows/build-pdf.yml/dispatches`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ref: 'main' }),
+      });
     }
 
-    btn.textContent = 'Triggering build...';
-    showStatus('Triggering PDF build...');
+    btn.textContent = 'Building...';
+    showStatus('PDF is building...');
 
-    // Trigger the workflow manually
-    await fetch(`${API}/repos/${REPO}/actions/workflows/build-pdf.yml/dispatches`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ ref: 'main' }),
-    });
-
-    // Wait a moment for GitHub to start the action
-    await sleep(3000);
+    // Wait for GitHub to register the run
+    await sleep(2000);
 
     // Poll for the workflow run
     const runId = await waitForRun();
@@ -634,15 +637,14 @@ async function buildPdf() {
 }
 
 async function waitForRun() {
-  // Look for a recent run on the workflow
-  for (let attempt = 0; attempt < 10; attempt++) {
+  for (let attempt = 0; attempt < 15; attempt++) {
     const data = await ghGet(`repos/${REPO}/actions/workflows/build-pdf.yml/runs?per_page=1&branch=main`, true);
     if (data.workflow_runs && data.workflow_runs.length > 0) {
       const run = data.workflow_runs[0];
       const age = Date.now() - new Date(run.created_at).getTime();
-      if (age < 60000) return run.id; // created in the last 60s
+      if (age < 120000) return run.id;
     }
-    await sleep(3000);
+    await sleep(2000);
   }
   return null;
 }
@@ -651,7 +653,7 @@ async function pollRun(runId) {
   for (let attempt = 0; attempt < 60; attempt++) {
     const data = await ghGet(`repos/${REPO}/actions/runs/${runId}`, true);
     if (data.status === 'completed') return data.conclusion;
-    await sleep(5000);
+    await sleep(2000);
   }
   return 'timeout';
 }
