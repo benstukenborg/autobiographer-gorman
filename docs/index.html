@@ -71,9 +71,49 @@
   /* ── App Layout ── */
   #app { display: none; max-width: 780px; margin: 0 auto; padding: 40px 20px 80px; }
 
+  /* ── Top Bar ── */
+  #top-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #FDFCFA;
+    border-bottom: 1px solid #e8e5e1;
+    padding: 10px 20px;
+    display: none;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    z-index: 100;
+  }
+  #top-bar.visible { display: flex; }
+  #build-btn {
+    padding: 8px 20px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    background: transparent;
+    color: #686560;
+    border: 1px solid #d0cdc8;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  #build-btn:hover:not(:disabled) { background: #f0eeeb; }
+  #build-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  #logout-btn {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    color: #b0ada8;
+    background: none;
+    border: none;
+    cursor: pointer;
+  }
+  #logout-btn:hover { color: #686560; }
+
   header {
     text-align: center;
     margin-bottom: 48px;
+    margin-top: 20px;
     padding-bottom: 32px;
     border-bottom: 1px solid #e8e5e1;
   }
@@ -190,8 +230,8 @@
   }
   .chapter-item.modified .modified-badge { display: inline; }
 
-  /* ── Bottom Bar ── */
-  #bottom-bar {
+  /* ── Save Bar (bottom) ── */
+  #save-bar {
     position: fixed;
     bottom: 0;
     left: 0;
@@ -205,40 +245,30 @@
     gap: 16px;
     z-index: 100;
   }
-  #bottom-bar.visible { display: flex; }
-  #save-bar { display: none; }
-  #save-bar.visible { display: contents; }
+  #save-bar.visible { display: flex; }
   #change-count {
     font-family: 'Space Grotesk', sans-serif;
     font-size: 13px;
     color: #97928C;
   }
-  .bar-btn {
+  #save-btn {
     padding: 10px 28px;
     font-family: 'Space Grotesk', sans-serif;
     font-size: 14px;
     font-weight: 500;
+    background: #686560;
+    color: #FDFCFA;
     border: none;
     border-radius: 6px;
     cursor: pointer;
   }
-  .bar-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  #save-btn {
-    background: #686560;
-    color: #FDFCFA;
-  }
   #save-btn:hover:not(:disabled) { background: #504d49; }
-  #build-btn {
-    background: transparent;
-    color: #686560;
-    border: 1px solid #d0cdc8;
-  }
-  #build-btn:hover:not(:disabled) { background: #f0eeeb; }
+  #save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
   /* ── Status ── */
   #status-bar {
     position: fixed;
-    top: 0;
+    top: 42px;
     left: 0;
     right: 0;
     background: #686560;
@@ -251,22 +281,6 @@
     z-index: 200;
   }
   #status-bar.visible { display: block; }
-  #status-bar a { color: #e8c85a; text-decoration: underline; cursor: pointer; }
-
-  /* ── Logout ── */
-  #logout-btn {
-    position: fixed;
-    top: 12px;
-    right: 16px;
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 11px;
-    color: #b0ada8;
-    background: none;
-    border: none;
-    cursor: pointer;
-    z-index: 50;
-  }
-  #logout-btn:hover { color: #686560; }
 </style>
 </head>
 <body>
@@ -279,8 +293,12 @@
   <div id="auth-error">Invalid access code. Please try again.</div>
 </div>
 
-<div id="app">
+<div id="top-bar">
+  <button id="build-btn" onclick="buildPdf()">Build PDF</button>
   <button id="logout-btn" onclick="logout()">Sign out</button>
+</div>
+
+<div id="app">
   <header>
     <h1 id="book-title"></h1>
     <div class="author" id="book-author"></div>
@@ -288,24 +306,21 @@
   <div id="chapter-list"></div>
 </div>
 
-<div id="bottom-bar">
-  <span id="save-bar">
-    <span id="change-count"></span>
-    <button id="save-btn" class="bar-btn" onclick="saveChanges()">Save</button>
-  </span>
-  <button id="build-btn" class="bar-btn" onclick="buildPdf()">Build PDF</button>
+<div id="save-bar">
+  <span id="change-count"></span>
+  <button id="save-btn" onclick="saveChanges()">Save</button>
 </div>
 
 <div id="status-bar"></div>
 
 <script>
 const REPO = 'benstukenborg/autobiographer-gorman';
-const BOOK = 'gorman';
 const BOOK_PATH = 'content';
 const API = 'https://api.github.com';
 
 let token = '';
-let files = [];       // { name, path, sha, meta, body, originalBody, originalTitle }
+let bookTitle = '';
+let files = [];
 let modified = new Set();
 
 // ── Auth ──
@@ -321,6 +336,7 @@ async function authenticate() {
     localStorage.setItem('autobiographer_token', t);
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
+    document.getElementById('top-bar').classList.add('visible');
     loadBook();
   } catch {
     document.getElementById('auth-error').style.display = 'block';
@@ -333,13 +349,13 @@ function logout() {
   location.reload();
 }
 
-// ── Load on start ──
 (function init() {
   const saved = localStorage.getItem('autobiographer_token');
   if (saved) {
     token = saved;
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
+    document.getElementById('top-bar').classList.add('visible');
     loadBook();
   }
 })();
@@ -348,21 +364,19 @@ function logout() {
 async function loadBook() {
   showStatus('Loading book...');
   try {
-    // Load metadata
     const metaRes = await ghGet(`${BOOK_PATH}/metadata.yml`);
     const metaText = decodeContent(metaRes.content);
     const titleMatch = metaText.match(/title:\s*"(.+?)"/);
     const authorMatch = metaText.match(/author:\s*"(.+?)"/);
-    document.getElementById('book-title').textContent = titleMatch ? titleMatch[1] : BOOK;
+    bookTitle = titleMatch ? titleMatch[1] : 'Book';
+    document.getElementById('book-title').textContent = bookTitle;
     document.getElementById('book-author').textContent = authorMatch ? authorMatch[1] : '';
 
-    // Load file listing (Contents API returns name, path, sha for each file)
     const listing = await ghGet(BOOK_PATH);
     const mdEntries = listing.filter(f => f.name.endsWith('.md')).sort((a, b) => a.name.localeCompare(b.name));
 
     showStatus(`Loading ${mdEntries.length} chapters...`);
 
-    // Load each file content
     files = [];
     const promises = mdEntries.map(async (f) => {
       const content = await ghGet(f.path);
@@ -382,7 +396,6 @@ async function loadBook() {
     files.sort((a, b) => a.name.localeCompare(b.name));
     hideStatus();
     renderChapters();
-    showBottomBar();
   } catch (e) {
     showStatus('Error loading book: ' + e.message);
     console.error(e);
@@ -483,7 +496,6 @@ function updateBody(i, val) {
 function updateTitle(i, val) {
   files[i].meta.title = val;
   checkModified(i);
-  // Update displayed title
   const el = document.querySelector(`.chapter-item[data-index="${i}"] .chapter-title-text`);
   if (el) el.textContent = val;
 }
@@ -499,22 +511,18 @@ function checkModified(i) {
     modified.delete(i);
     el.classList.remove('modified');
   }
-  updateBottomBar();
+  updateSaveBar();
 }
 
-function updateBottomBar() {
-  const saveBar = document.getElementById('save-bar');
+function updateSaveBar() {
+  const bar = document.getElementById('save-bar');
   const count = document.getElementById('change-count');
   if (modified.size > 0) {
-    saveBar.classList.add('visible');
+    bar.classList.add('visible');
     count.textContent = `${modified.size} file${modified.size > 1 ? 's' : ''} modified`;
   } else {
-    saveBar.classList.remove('visible');
+    bar.classList.remove('visible');
   }
-}
-
-function showBottomBar() {
-  document.getElementById('bottom-bar').classList.add('visible');
 }
 
 // ── Save Changes ──
@@ -554,7 +562,7 @@ async function saveChanges() {
 
     modified.clear();
     document.querySelectorAll('.chapter-item.modified').forEach(el => el.classList.remove('modified'));
-    updateBottomBar();
+    updateSaveBar();
 
     showStatus('Changes saved!');
     setTimeout(() => hideStatus(), 3000);
@@ -573,14 +581,46 @@ async function buildPdf() {
   const hadChanges = modified.size > 0;
 
   try {
-    // Save any unsaved changes first (this push triggers the build automatically)
     if (hadChanges) {
-      btn.textContent = 'Saving changes...';
+      // Save first — this push triggers the build automatically
+      btn.textContent = 'Saving...';
       showStatus('Saving changes...');
       await saveChanges();
+
+      btn.textContent = 'Building...';
+      showStatus('PDF is building...');
+
+      // Wait for GitHub to register the run from the push
+      await sleep(3000);
+
+      const runId = await waitForRun();
+      if (!runId) {
+        showStatus('Could not find build. Try again.');
+        btn.disabled = false;
+        btn.textContent = 'Build PDF';
+        return;
+      }
+
+      const conclusion = await pollRun(runId);
+      if (conclusion !== 'success') {
+        showStatus('Build failed. Please try again.');
+        btn.disabled = false;
+        btn.textContent = 'Build PDF';
+        return;
+      }
+
+      showStatus('Downloading PDF...');
+      const artifactUrl = await getArtifact(runId);
+      if (artifactUrl) {
+        await downloadArtifact(artifactUrl);
+        showStatus('PDF downloaded!');
+        setTimeout(() => hideStatus(), 4000);
+      } else {
+        showStatus('Build succeeded but no PDF found.');
+      }
     } else {
-      // No changes — just download the latest artifact from the most recent run
-      btn.textContent = 'Fetching latest PDF...';
+      // No changes — download latest existing artifact
+      btn.textContent = 'Fetching PDF...';
       showStatus('Fetching latest PDF...');
       const data = await ghGet(`repos/${REPO}/actions/workflows/build-pdf.yml/runs?per_page=1&branch=main&status=completed`, true);
       if (data.workflow_runs && data.workflow_runs.length > 0 && data.workflow_runs[0].conclusion === 'success') {
@@ -595,50 +635,10 @@ async function buildPdf() {
       } else {
         showStatus('No successful build found. Make a change and save first.');
       }
-      btn.disabled = false;
-      btn.textContent = 'Build PDF';
-      return;
-    }
-
-    btn.textContent = 'Building...';
-    showStatus('PDF is building...');
-
-    // Wait for GitHub to register the run
-    await sleep(2000);
-
-    // Poll for the workflow run
-    const runId = await waitForRun();
-    if (!runId) {
-      showStatus('Could not find build run. Try again in a moment.');
-      btn.disabled = false;
-      btn.textContent = 'Build PDF';
-      return;
-    }
-
-    showStatus('PDF is building...');
-    btn.textContent = 'Building...';
-
-    // Poll until complete
-    const conclusion = await pollRun(runId);
-    if (conclusion !== 'success') {
-      showStatus('Build failed. Please try again.');
-      btn.disabled = false;
-      btn.textContent = 'Build PDF';
-      return;
-    }
-
-    // Get artifact
-    showStatus('Build complete! Downloading...');
-    const artifactUrl = await getArtifact(runId);
-    if (artifactUrl) {
-      await downloadArtifact(artifactUrl);
-      showStatus('PDF downloaded!');
-      setTimeout(() => hideStatus(), 4000);
-    } else {
-      showStatus('Build succeeded but no file found. Try again.');
     }
   } catch (e) {
     showStatus('Error: ' + e.message);
+    console.error(e);
   }
 
   btn.disabled = false;
@@ -683,25 +683,25 @@ async function downloadArtifact(url) {
   const zipData = await res.arrayBuffer();
   const zip = await JSZip.loadAsync(zipData);
 
-  // Find the first .pdf file in the zip
   let pdfFile = null;
   zip.forEach((path, entry) => {
     if (path.endsWith('.pdf') && !pdfFile) pdfFile = entry;
   });
 
+  const pdfName = bookTitle.replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, '_') + '.pdf';
+
   if (pdfFile) {
     const pdfBlob = await pdfFile.async('blob');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(pdfBlob);
-    a.download = pdfFile.name;
+    a.download = pdfName;
     document.body.appendChild(a);
     a.click();
     a.remove();
   } else {
-    // No PDF found in zip — download the zip as-is
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([zipData]));
-    a.download = `${BOOK}.zip`;
+    a.download = pdfName.replace('.pdf', '.zip');
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -718,7 +718,6 @@ async function ghGet(pathOrUrl, isFullPath = false) {
   return res.json();
 }
 
-// ── Utilities ──
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 function showStatus(html) {
