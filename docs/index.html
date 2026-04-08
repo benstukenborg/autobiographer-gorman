@@ -586,8 +586,8 @@ async function buildPdf() {
   const hadChanges = modified.size > 0;
 
   try {
-    // Record time BEFORE saving so we catch the run triggered by the push
-    const beforeTime = new Date().toISOString();
+    // Record time BEFORE saving, with 30s buffer for clock skew between local and GitHub
+    const beforeTime = new Date(Date.now() - 30000).toISOString();
 
     if (hadChanges) {
       btn.textContent = 'Saving...';
