@@ -586,15 +586,12 @@ async function buildPdf() {
   const hadChanges = modified.size > 0;
 
   try {
-    // Record time BEFORE saving, with 30s buffer for clock skew between local and GitHub
-    const beforeTime = new Date(Date.now() - 30000).toISOString();
-
     if (hadChanges) {
       btn.textContent = 'Saving...';
       showStatus('Saving changes...');
       await saveChanges();
-    } else {
-      // No changes — just download the most recent successful build
+    } else if (!lastCommitSha) {
+      // No changes ever saved — just download the most recent successful build
       btn.textContent = 'Fetching PDF...';
       showStatus('Fetching latest PDF...');
       const data = await ghGet(`repos/${REPO}/actions/workflows/build-pdf.yml/runs?per_page=1&branch=main&status=completed&conclusion=success`, true);
@@ -619,14 +616,13 @@ async function buildPdf() {
     btn.textContent = 'Building...';
     showStatus('PDF is building...');
 
-    // Poll for a completed build-pdf run created AFTER beforeTime
+    // Poll for a completed build-pdf run matching the exact commit we saved
     let downloadUrl = null;
     for (let attempt = 0; attempt < 30; attempt++) {
       await sleep(3000);
-      const data = await ghGet(`repos/${REPO}/actions/workflows/build-pdf.yml/runs?per_page=5&branch=main`, true);
+      const data = await ghGet(`repos/${REPO}/actions/workflows/build-pdf.yml/runs?per_page=5&branch=main&head_sha=${lastCommitSha}`, true);
       if (data.workflow_runs) {
         for (const run of data.workflow_runs) {
-          if (run.created_at < beforeTime) continue;
           if (run.status !== 'completed' || run.conclusion !== 'success') continue;
           const artData = await ghGet(`repos/${REPO}/actions/runs/${run.id}/artifacts`, true);
           const bookArt = artData.artifacts?.find(a => a.name === 'book-pdf');
