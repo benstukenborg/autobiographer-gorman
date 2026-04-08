@@ -1,0 +1,32 @@
+name: Build PDF
+
+on:
+  push:
+    paths:
+      - 'content/**'
+      - 'generator/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: cd generator && npm ci
+
+      - name: Build PDF
+        run: node generator/generate.mjs content
+
+      - name: Upload PDF
+        uses: actions/upload-artifact@v4
+        with:
+          name: book-pdf
+          path: content/*.pdf
+          retention-days: 90

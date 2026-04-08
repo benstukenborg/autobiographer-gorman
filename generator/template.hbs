@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<style>
+    @font-face {
+        font-family: 'TimesNow';
+        src: url('TimesNow-SemiLight.ttf') format('truetype');
+        font-weight: 300;
+        font-style: normal;
+    }
+    @font-face {
+        font-family: 'TimesNow';
+        src: url('TimesNow-SemiLightItalic.ttf') format('truetype');
+        font-weight: 300;
+        font-style: italic;
+    }
+    @font-face {
+        font-family: 'TimesNow';
+        src: url('TimesNow-Light.ttf') format('truetype');
+        font-weight: 200;
+        font-style: normal;
+    }
+    @font-face {
+        font-family: 'TimesNow';
+        src: url('TimesNow-LightItalic.ttf') format('truetype');
+        font-weight: 200;
+        font-style: italic;
+    }
+    @font-face {
+        font-family: 'TimesNow';
+        src: url('TimesNow-Bold.ttf') format('truetype');
+        font-weight: 700;
+        font-style: normal;
+    }
+    @font-face {
+        font-family: 'TimesNow';
+        src: url('TimesNow-SemiBold.ttf') format('truetype');
+        font-weight: 500;
+        font-style: normal;
+    }
+    @font-face {
+        font-family: 'SpaceGrotesk';
+        src: url('SpaceGrotesk-VariableFont_wght.ttf') format('truetype');
+    }
+    @font-face {
+        font-family: 'Cormorant';
+        src: url('Cormorant-VariableFont_wght.ttf') format('truetype');
+    }
+
+    body {
+        margin: 0;
+        font-family: 'TimesNow', serif;
+        color: #686560;
+    }
+
+    @media print {
+        .page {
+            page-break-after: always;
+        }
+    }
+
+    /* ── MEMOIR TEXT (Ralph's voice) and INTRO/OUTRO ── */
+    .memoir, .intro {
+        text-align: justify;
+        hyphens: manual;
+        font-size: 17px;
+        font-weight: 300;
+        line-height: 20.4px;
+        margin-right: 6px;
+    }
+    .memoir:first-letter {
+        font-size: 57px;
+    }
+
+    /* ── EDITORIAL TEXT (editor's voice) ── */
+    .editorial {
+        text-align: justify;
+        hyphens: manual;
+        font-size: 16px;
+        font-weight: 300;
+        font-style: italic;
+        line-height: 21px;
+        margin-right: 6px;
+        color: #7a7672;
+    }
+
+    /* ── BRIDGE TEXT (short editorial transitions) ── */
+    .bridge {
+        text-align: justify;
+        hyphens: manual;
+        font-size: 16px;
+        font-weight: 300;
+        font-style: italic;
+        line-height: 21px;
+        margin-right: 6px;
+        color: #7a7672;
+        margin-top: 36px;
+        margin-bottom: 36px;
+    }
+
+    /* ── TITLES ── */
+    .memoir-title {
+        text-align: center;
+        font-size: 30px;
+        font-weight: 500;
+        width: 217px;
+        margin: auto;
+        margin-bottom: 58px;
+        display: flex;
+        justify-content: center;
+    }
+
+    .part-title-page {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        text-align: center;
+    }
+
+    .part-number {
+        font-family: 'SpaceGrotesk', sans-serif;
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+        color: #97928C;
+        margin-bottom: 24px;
+    }
+
+    .part-name {
+        font-size: 36px;
+        font-weight: 500;
+        color: #686560;
+        width: 300px;
+    }
+
+    .preface-title {
+        text-align: center;
+        font-size: 24px;
+        font-weight: 500;
+        margin-bottom: 40px;
+        color: #686560;
+    }
+
+    .chapter-counter {
+        text-align: center;
+        font-size: 30px;
+        font-weight: 500;
+        margin-bottom: 36px;
+    }
+
+    /* ── SEPARATOR ── */
+    .separator {
+        text-align: center;
+        font-size: 18px;
+        color: #97928C;
+        margin: 40px 0;
+        letter-spacing: 8px;
+    }
+
+    /* ── BACK COVER ── */
+    .back-cover {
+        margin: 0;
+        background-color: #F9F7F4;
+        text-align: center;
+        font-family: 'TimesNow', serif;
+    }
+    .back-cover div {
+        margin-left: auto;
+        margin-right: auto;
+    }
+    .back-container {
+        top: 300px;
+        position: relative;
+        font-size: 20px;
+        font-weight: 500;
+    }
+    .back-container > div {
+        display: flex;
+        justify-content: center;
+    }
+    .back-title {
+        width: 280px;
+        margin-bottom: 12px;
+    }
+    .back-author {
+        width: 200px;
+        margin-top: 12px;
+        margin-bottom: 40px;
+    }
+    .back-gray {
+        color: #97928C;
+        font-family: 'SpaceGrotesk', sans-serif;
+        font-size: 10px;
+        font-weight: 400;
+    }
+    .generation-text {
+        color: #CCCCCC;
+        font-family: 'SpaceGrotesk', sans-serif;
+        font-size: 10px;
+        font-weight: 400;
+    }
+    .download-text {
+        color: #CCCCCC;
+        font-family: 'SpaceGrotesk', sans-serif;
+        font-size: 10px;
+        font-weight: 400;
+    }
+    a {
+        color: #CCCCCC;
+        font-size: 10px;
+    }
+    .link {
+        display: block;
+        margin-bottom: 20px;
+    }
+</style>
+</head>
+<body>
+
+    <!-- BLANK HALF-TITLE PAGE -->
+    <div class="page"></div>
+
+    <!-- INTRO -->
+    {{#if bookIntro}}
+    <div class="page">
+        <div class="memoir-title">
+            {{{bookIntro.title}}}
+        </div>
+        <div class="intro">
+            {{#each bookIntro.paragraphs}}
+            <p>{{{text}}}</p>
+            {{/each}}
+        </div>
+    </div>
+    {{/if}}
+
+    <!-- PARTS -->
+    {{#each parts}}
+
+    <!-- PART TITLE PAGE -->
+    <div class="page">
+        <div class="part-title-page">
+            <div class="part-name">
+                {{{title}}}
+            </div>
+        </div>
+    </div>
+
+    <!-- PART INTRO (editorial frame) -->
+    {{#if intro}}
+    <div class="page">
+        <div class="editorial">
+            {{#each intro.paragraphs}}
+            <p>{{{text}}}</p>
+            {{/each}}
+        </div>
+    </div>
+    {{/if}}
+
+    <!-- CHAPTERS (memoirs and bridges) -->
+    {{#each chapters}}
+        {{#if (isbridge this)}}
+        <!-- BRIDGE -->
+        <div class="bridge">
+            {{#each paragraphs}}
+            <p>{{{text}}}</p>
+            {{/each}}
+        </div>
+        {{else}}
+        <!-- MEMOIR -->
+        <div class="page">
+            <div class="chapter-counter">{{{romanNumeral}}}</div>
+            <div class="memoir-title">
+                {{{title}}}
+            </div>
+            <div class="memoir">
+                {{#each paragraphs}}
+                <p>{{{text}}}</p>
+                {{/each}}
+            </div>
+        </div>
+        {{/if}}
+    {{/each}}
+
+    {{/each}}
+
+    <!-- OUTRO -->
+    {{#if bookOutro}}
+    <div class="page">
+        <div class="memoir-title">
+            {{{bookOutro.title}}}
+        </div>
+        <div class="intro">
+            {{#each bookOutro.paragraphs}}
+            <p>{{{text}}}</p>
+            {{/each}}
+        </div>
+    </div>
+    {{/if}}
+
+    <!-- BACK COVER -->
+    <div class="page back-cover">
+        <div class="back-container">
+            <div class="back-title">
+                {{{bookTitle}}}
+            </div>
+            <div class="back-gray">
+                from the stories of
+            </div>
+            <div class="back-author">
+                {{{bookAuthor}}}
+            </div>
+            <div class="download-text">
+                Download the app.
+            </div>
+            <a class="link" href="https://autobiographerapp.app.link/e/pdf">https://autobiographerapp.app.link/e/pdf</a>
+            <div class="generation-text">
+                This book was generated with the help of the Autobiographer AI
+                <br>
+                (excluding the Introduction and Closing Reflections)
+                <br>
+                <br>
+                Autobiographer.studio
+            </div>
+        </div>
+    </div>
+
+    <!-- Q DROP-CAP FIX (same as autobiographer) -->
+    <script type="application/javascript">
+        const memoirs = document.querySelectorAll(".memoir");
+        for (const m of memoirs) {
+            const firstLetter = m.innerText.charAt(0);
+            if (firstLetter === 'Q') {
+                m.innerHTML = m.innerHTML.replace("Q", '<span style="position:relative;top:-6px">Q</span>');
+            }
+        }
+    </script>
+</body>
+</html>

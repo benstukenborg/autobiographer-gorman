@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Autobiographer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant:wght@400;500;600&family=Space+Grotesk:wght@400;500&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Cormorant', Georgia, serif;
+    background: #FDFCFA;
+    color: #686560;
+    min-height: 100vh;
+  }
+
+  /* ── Auth Screen ── */
+  #auth-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  #auth-screen h1 {
+    font-size: 36px;
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+  #auth-screen p {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    color: #97928C;
+    margin-bottom: 32px;
+  }
+  #auth-screen input {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px;
+    padding: 12px 16px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    width: 320px;
+    outline: none;
+  }
+  #auth-screen input:focus { border-color: #97928C; }
+  #auth-screen .auth-btn {
+    margin-top: 12px;
+    padding: 10px 32px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    background: #686560;
+    color: #FDFCFA;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  #auth-screen .auth-btn:hover { background: #504d49; }
+  #auth-error {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px;
+    color: #c44;
+    margin-top: 12px;
+    display: none;
+  }
+
+  /* ── App Layout ── */
+  #app { display: none; max-width: 780px; margin: 0 auto; padding: 40px 20px 80px; }
+
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid #e8e5e1;
+  }
+  header h1 { font-size: 32px; font-weight: 500; margin-bottom: 4px; }
+  header .author {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    color: #97928C;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  /* ── Chapter List ── */
+  .chapter-item {
+    border-bottom: 1px solid #eeebe7;
+    padding: 0;
+  }
+  .chapter-header {
+    display: flex;
+    align-items: center;
+    padding: 16px 0;
+    cursor: pointer;
+    user-select: none;
+  }
+  .chapter-header:hover { color: #504d49; }
+  .chapter-num {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    color: #b0ada8;
+    width: 36px;
+    flex-shrink: 0;
+  }
+  .chapter-type {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 3px;
+    margin-right: 12px;
+    flex-shrink: 0;
+  }
+  .type-memoir { background: #f0eeeb; color: #686560; }
+  .type-editorial { background: #eef0f5; color: #6a7085; }
+  .type-bridge { background: #f5f0ee; color: #857060; }
+  .type-intro, .type-outro { background: #eef5f0; color: #607060; }
+  .type-part-title { background: #f5eeF5; color: #706070; }
+
+  .chapter-title-text {
+    font-size: 18px;
+    font-weight: 500;
+    flex: 1;
+  }
+  .chapter-arrow {
+    font-size: 18px;
+    color: #b0ada8;
+    transition: transform 0.2s;
+    margin-left: 12px;
+  }
+  .chapter-item.open .chapter-arrow { transform: rotate(90deg); }
+
+  .chapter-body {
+    display: none;
+    padding: 0 0 24px 36px;
+  }
+  .chapter-item.open .chapter-body { display: block; }
+
+  .chapter-body textarea {
+    width: 100%;
+    min-height: 200px;
+    font-family: 'Cormorant', Georgia, serif;
+    font-size: 16px;
+    line-height: 1.6;
+    color: #686560;
+    background: #faf9f7;
+    border: 1px solid #e8e5e1;
+    border-radius: 6px;
+    padding: 16px;
+    resize: vertical;
+    outline: none;
+  }
+  .chapter-body textarea:focus { border-color: #97928C; background: #fff; }
+
+  .chapter-body .meta-row {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px;
+    color: #97928C;
+    margin-bottom: 8px;
+  }
+  .chapter-body .meta-row input {
+    font-family: 'Cormorant', Georgia, serif;
+    font-size: 16px;
+    font-weight: 500;
+    color: #686560;
+    border: 1px solid #e8e5e1;
+    border-radius: 4px;
+    padding: 6px 10px;
+    margin-left: 8px;
+    outline: none;
+    width: 300px;
+  }
+  .chapter-body .meta-row input:focus { border-color: #97928C; }
+  .modified-badge {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    background: #e8c85a;
+    color: #5a4e1a;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-left: 8px;
+    display: none;
+  }
+  .chapter-item.modified .modified-badge { display: inline; }
+
+  /* ── Bottom Bar ── */
+  #bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border-top: 1px solid #e8e5e1;
+    padding: 12px 20px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    z-index: 100;
+  }
+  #bottom-bar.visible { display: flex; }
+  #change-count {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    color: #97928C;
+  }
+  #build-btn {
+    padding: 10px 28px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    background: #686560;
+    color: #FDFCFA;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  #build-btn:hover { background: #504d49; }
+  #build-btn:disabled { background: #b0ada8; cursor: not-allowed; }
+
+  /* ── Status ── */
+  #status-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #686560;
+    color: #fdfcfa;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    padding: 10px 20px;
+    text-align: center;
+    display: none;
+    z-index: 200;
+  }
+  #status-bar.visible { display: block; }
+  #status-bar a { color: #e8c85a; text-decoration: underline; cursor: pointer; }
+
+  /* ── Logout ── */
+  #logout-btn {
+    position: fixed;
+    top: 12px;
+    right: 16px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    color: #b0ada8;
+    background: none;
+    border: none;
+    cursor: pointer;
+    z-index: 50;
+  }
+  #logout-btn:hover { color: #686560; }
+</style>
+</head>
+<body>
+
+<div id="auth-screen">
+  <h1>Autobiographer</h1>
+  <p>Enter your access code to continue</p>
+  <input type="password" id="password-input" placeholder="Paste access code" autocomplete="off" onkeydown="if(event.key==='Enter')authenticate()">
+  <button class="auth-btn" onclick="authenticate()">Continue</button>
+  <div id="auth-error">Invalid access code. Please try again.</div>
+</div>
+
+<div id="app">
+  <button id="logout-btn" onclick="logout()">Sign out</button>
+  <header>
+    <h1 id="book-title"></h1>
+    <div class="author" id="book-author"></div>
+  </header>
+  <div id="chapter-list"></div>
+</div>
+
+<div id="bottom-bar">
+  <span id="change-count"></span>
+  <button id="build-btn" onclick="buildPdf()">Build PDF</button>
+</div>
+
+<div id="status-bar"></div>
+
+<script>
+const REPO = 'benstukenborg/autobiographer-gorman';
+const BOOK = 'gorman';
+const BOOK_PATH = 'content';
+const API = 'https://api.github.com';
+
+let token = '';
+let files = [];       // { name, path, sha, meta, body, originalBody, originalTitle }
+let modified = new Set();
+
+// ── Auth ──
+async function authenticate() {
+  const t = document.getElementById('password-input').value.trim();
+  if (!t) return;
+  try {
+    const res = await fetch(`${API}/repos/${REPO}`, {
+      headers: { Authorization: `Bearer ${t}` }
+    });
+    if (!res.ok) throw new Error();
+    token = t;
+    localStorage.setItem('autobiographer_token', t);
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    loadBook();
+  } catch {
+    document.getElementById('auth-error').style.display = 'block';
+  }
+}
+
+function logout() {
+  localStorage.removeItem('autobiographer_token');
+  token = '';
+  location.reload();
+}
+
+// ── Load on start ──
+(function init() {
+  const saved = localStorage.getItem('autobiographer_token');
+  if (saved) {
+    token = saved;
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    loadBook();
+  }
+})();
+
+// ── Load Book ──
+async function loadBook() {
+  showStatus('Loading book...');
+  try {
+    // Load metadata
+    const metaRes = await ghGet(`${BOOK_PATH}/metadata.yml`);
+    const metaText = decodeContent(metaRes.content);
+    const titleMatch = metaText.match(/title:\s*"(.+?)"/);
+    const authorMatch = metaText.match(/author:\s*"(.+?)"/);
+    document.getElementById('book-title').textContent = titleMatch ? titleMatch[1] : BOOK;
+    document.getElementById('book-author').textContent = authorMatch ? authorMatch[1] : '';
+
+    // Load file listing (Contents API returns name, path, sha for each file)
+    const listing = await ghGet(BOOK_PATH);
+    const mdEntries = listing.filter(f => f.name.endsWith('.md')).sort((a, b) => a.name.localeCompare(b.name));
+
+    showStatus(`Loading ${mdEntries.length} chapters...`);
+
+    // Load each file content
+    files = [];
+    const promises = mdEntries.map(async (f) => {
+      const content = await ghGet(f.path);
+      const text = decodeContent(content.content);
+      const parsed = parseFrontmatter(text);
+      return {
+        name: f.name,
+        path: f.path,
+        sha: content.sha,
+        meta: parsed.meta,
+        body: parsed.body,
+        originalBody: parsed.body,
+        originalTitle: parsed.meta.title || '',
+      };
+    });
+    files = await Promise.all(promises);
+    files.sort((a, b) => a.name.localeCompare(b.name));
+    hideStatus();
+    renderChapters();
+  } catch (e) {
+    showStatus('Error loading book: ' + e.message);
+    console.error(e);
+  }
+}
+
+function decodeContent(b64) {
+  const bin = atob(b64.replace(/\n/g, ''));
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
+function parseFrontmatter(text) {
+  const m = text.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+  if (!m) return { meta: {}, body: text.trim() };
+  const meta = {};
+  m[1].split('\n').forEach(line => {
+    const kv = line.match(/^(\w[\w-]*):\s*"?(.*?)"?\s*$/);
+    if (kv) meta[kv[1]] = kv[2];
+  });
+  return { meta, body: m[2].trim() };
+}
+
+function serializeFile(file) {
+  let out = '---\n';
+  out += `type: ${file.meta.type}\n`;
+  if (file.meta.title) out += `title: "${file.meta.title}"\n`;
+  out += '---\n\n';
+  out += file.body + '\n';
+  return out;
+}
+
+// ── Render ──
+function renderChapters() {
+  const list = document.getElementById('chapter-list');
+  list.innerHTML = '';
+  files.forEach((f, i) => {
+    const type = f.meta.type || 'unknown';
+    const displayTitle = f.meta.title || typeLabel(type);
+    const el = document.createElement('div');
+    el.className = 'chapter-item';
+    el.dataset.index = i;
+    el.innerHTML = `
+      <div class="chapter-header" onclick="toggleChapter(${i})">
+        <span class="chapter-num">${String(i + 1).padStart(2, '0')}</span>
+        <span class="chapter-type type-${type}">${type.replace('-', ' ')}</span>
+        <span class="chapter-title-text">${esc(displayTitle)}</span>
+        <span class="modified-badge">modified</span>
+        <span class="chapter-arrow">&#8250;</span>
+      </div>
+      <div class="chapter-body">
+        ${f.meta.title ? `<div class="meta-row">Title: <input type="text" value="${esc(f.meta.title)}" oninput="updateTitle(${i}, this.value)"></div>` : ''}
+        <textarea oninput="updateBody(${i}, this.value)" onfocus="autoGrow(this)">${esc(f.body)}</textarea>
+      </div>
+    `;
+    list.appendChild(el);
+  });
+}
+
+function typeLabel(type) {
+  const labels = {
+    'intro': 'Introduction',
+    'outro': 'Closing Reflections',
+    'editorial': 'Editorial Frame',
+    'bridge': 'Bridge',
+    'part-title': 'Part Title',
+    'memoir': 'Memoir',
+  };
+  return labels[type] || type;
+}
+
+function esc(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function toggleChapter(i) {
+  const el = document.querySelector(`.chapter-item[data-index="${i}"]`);
+  el.classList.toggle('open');
+  if (el.classList.contains('open')) {
+    const ta = el.querySelector('textarea');
+    if (ta) autoGrow(ta);
+  }
+}
+
+function autoGrow(ta) {
+  ta.style.height = 'auto';
+  ta.style.height = Math.max(200, ta.scrollHeight + 4) + 'px';
+}
+
+function updateBody(i, val) {
+  files[i].body = val;
+  checkModified(i);
+}
+
+function updateTitle(i, val) {
+  files[i].meta.title = val;
+  checkModified(i);
+  // Update displayed title
+  const el = document.querySelector(`.chapter-item[data-index="${i}"] .chapter-title-text`);
+  if (el) el.textContent = val;
+}
+
+function checkModified(i) {
+  const f = files[i];
+  const isModified = f.body !== f.originalBody || (f.meta.title || '') !== f.originalTitle;
+  const el = document.querySelector(`.chapter-item[data-index="${i}"]`);
+  if (isModified) {
+    modified.add(i);
+    el.classList.add('modified');
+  } else {
+    modified.delete(i);
+    el.classList.remove('modified');
+  }
+  updateBottomBar();
+}
+
+function updateBottomBar() {
+  const bar = document.getElementById('bottom-bar');
+  const count = document.getElementById('change-count');
+  if (modified.size > 0) {
+    bar.classList.add('visible');
+    count.textContent = `${modified.size} file${modified.size > 1 ? 's' : ''} modified`;
+  } else {
+    bar.classList.remove('visible');
+  }
+}
+
+// ── Build PDF ──
+async function buildPdf() {
+  const btn = document.getElementById('build-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving changes...';
+  showStatus('Saving your changes...');
+
+  try {
+    // Commit each modified file
+    for (const i of modified) {
+      const f = files[i];
+      const content = serializeFile(f);
+      const b64 = btoa(unescape(encodeURIComponent(content)));
+      const res = await fetch(`${API}/repos/${REPO}/contents/${f.path}`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: `Update ${f.name}`,
+          content: b64,
+          sha: f.sha,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Failed to save');
+      }
+      const result = await res.json();
+      f.sha = result.content.sha;
+      f.originalBody = f.body;
+      f.originalTitle = f.meta.title || '';
+    }
+
+    modified.clear();
+    document.querySelectorAll('.chapter-item.modified').forEach(el => el.classList.remove('modified'));
+    updateBottomBar();
+
+    showStatus('Changes saved. Waiting for PDF build...');
+    btn.textContent = 'Building PDF...';
+
+    // Wait a moment for GitHub to trigger the action
+    await sleep(3000);
+
+    // Poll for the workflow run
+    const runId = await waitForRun();
+    if (!runId) {
+      showStatus('Could not find build run. Check <a href="https://github.com/' + REPO + '/actions" target="_blank">Actions</a> manually.');
+      btn.disabled = false;
+      btn.textContent = 'Build PDF';
+      return;
+    }
+
+    showStatus('PDF is building...');
+
+    // Poll until complete
+    const conclusion = await pollRun(runId);
+    if (conclusion !== 'success') {
+      showStatus('Build failed. Check <a href="https://github.com/' + REPO + '/actions/runs/' + runId + '" target="_blank">the run</a> for details.');
+      btn.disabled = false;
+      btn.textContent = 'Build PDF';
+      return;
+    }
+
+    // Get artifact
+    showStatus('Build complete! Preparing download...');
+    const artifactUrl = await getArtifact(runId);
+    if (artifactUrl) {
+      await downloadArtifact(artifactUrl);
+      showStatus('PDF downloaded!');
+      setTimeout(() => hideStatus(), 4000);
+    } else {
+      showStatus('Build succeeded but no artifact found. Check <a href="https://github.com/' + REPO + '/actions/runs/' + runId + '" target="_blank">the run</a>.');
+    }
+  } catch (e) {
+    showStatus('Error: ' + e.message);
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Build PDF';
+}
+
+async function waitForRun() {
+  // Look for a recent run on the workflow
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const data = await ghGet(`repos/${REPO}/actions/workflows/build-pdf.yml/runs?per_page=1&branch=main`, true);
+    if (data.workflow_runs && data.workflow_runs.length > 0) {
+      const run = data.workflow_runs[0];
+      const age = Date.now() - new Date(run.created_at).getTime();
+      if (age < 60000) return run.id; // created in the last 60s
+    }
+    await sleep(3000);
+  }
+  return null;
+}
+
+async function pollRun(runId) {
+  for (let attempt = 0; attempt < 60; attempt++) {
+    const data = await ghGet(`repos/${REPO}/actions/runs/${runId}`, true);
+    if (data.status === 'completed') return data.conclusion;
+    await sleep(5000);
+  }
+  return 'timeout';
+}
+
+async function getArtifact(runId) {
+  const data = await ghGet(`repos/${REPO}/actions/runs/${runId}/artifacts`, true);
+  if (data.artifacts && data.artifacts.length > 0) {
+    return data.artifacts[0].archive_download_url;
+  }
+  return null;
+}
+
+async function downloadArtifact(url) {
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error('Failed to download artifact');
+  const blob = await res.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${BOOK}.zip`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+// ── GitHub API helper ──
+async function ghGet(pathOrUrl, isFullPath = false) {
+  const url = isFullPath ? `${API}/${pathOrUrl}` : `${API}/repos/${REPO}/contents/${pathOrUrl}`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
+  return res.json();
+}
+
+// ── Utilities ──
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function showStatus(html) {
+  const bar = document.getElementById('status-bar');
+  bar.innerHTML = html;
+  bar.classList.add('visible');
+}
+
+function hideStatus() {
+  document.getElementById('status-bar').classList.remove('visible');
+}
+</script>
+</body>
+</html>
