@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Autobiographer</title>
 <style>
@@ -578,17 +579,25 @@ async function buildPdf() {
       showStatus('Saving changes...');
       await saveChanges();
     } else {
-      // No changes — trigger build manually
-      btn.textContent = 'Triggering build...';
-      showStatus('Triggering PDF build...');
-      await fetch(`${API}/repos/${REPO}/actions/workflows/build-pdf.yml/dispatches`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ ref: 'main' }),
-      });
+      // No changes — just download the latest artifact from the most recent run
+      btn.textContent = 'Fetching latest PDF...';
+      showStatus('Fetching latest PDF...');
+      const data = await ghGet(`repos/${REPO}/actions/workflows/build-pdf.yml/runs?per_page=1&branch=main&status=completed`, true);
+      if (data.workflow_runs && data.workflow_runs.length > 0 && data.workflow_runs[0].conclusion === 'success') {
+        const artifactUrl = await getArtifact(data.workflow_runs[0].id);
+        if (artifactUrl) {
+          await downloadArtifact(artifactUrl);
+          showStatus('PDF downloaded!');
+          setTimeout(() => hideStatus(), 4000);
+        } else {
+          showStatus('No PDF found. Make a change and save first.');
+        }
+      } else {
+        showStatus('No successful build found. Make a change and save first.');
+      }
+      btn.disabled = false;
+      btn.textContent = 'Build PDF';
+      return;
     }
 
     btn.textContent = 'Building...';
@@ -671,52 +680,32 @@ async function downloadArtifact(url) {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error('Failed to download artifact');
-  const arrayBuf = await res.arrayBuffer();
-  const data = new Uint8Array(arrayBuf);
+  const zipData = await res.arrayBuffer();
+  const zip = await JSZip.loadAsync(zipData);
 
-  // Find local file header
-  let offset = 0;
-  while (offset < data.length - 4) {
-    if (data[offset] === 0x50 && data[offset+1] === 0x4b && data[offset+2] === 0x03 && data[offset+3] === 0x04) {
-      const compressionMethod = data[offset+8] | (data[offset+9] << 8);
-      const compressedSize = data[offset+18] | (data[offset+19] << 8) | (data[offset+20] << 16) | (data[offset+21] << 24);
-      const fnameLen = data[offset+26] | (data[offset+27] << 8);
-      const extraLen = data[offset+28] | (data[offset+29] << 8);
-      const dataStart = offset + 30 + fnameLen + extraLen;
-      const compressedData = data.slice(dataStart, dataStart + compressedSize);
+  // Find the first .pdf file in the zip
+  let pdfFile = null;
+  zip.forEach((path, entry) => {
+    if (path.endsWith('.pdf') && !pdfFile) pdfFile = entry;
+  });
 
-      let pdfBlob;
-      if (compressionMethod === 0) {
-        pdfBlob = new Blob([compressedData], { type: 'application/pdf' });
-      } else if (compressionMethod === 8) {
-        const ds = new DecompressionStream('deflate-raw');
-        const writer = ds.writable.getWriter();
-        writer.write(compressedData);
-        writer.close();
-        pdfBlob = await new Response(ds.readable).blob();
-      }
-
-      if (pdfBlob) {
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(pdfBlob);
-        a.download = `${BOOK}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        return;
-      }
-      break;
-    }
-    offset++;
+  if (pdfFile) {
+    const pdfBlob = await pdfFile.async('blob');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(pdfBlob);
+    a.download = pdfFile.name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } else {
+    // No PDF found in zip — download the zip as-is
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([zipData]));
+    a.download = `${BOOK}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   }
-
-  // Fallback
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([data]));
-  a.download = `${BOOK}.zip`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
 }
 
 // ── GitHub API helper ──
