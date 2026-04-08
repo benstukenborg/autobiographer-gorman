@@ -1,6 +1,6 @@
 ---
 type: intro
-title: "Introductionxxx"
+title: "Introductionxy"
 ---
 
 Ralph Gorman dropped out of high school at fourteen. By his own account, he was a street kid from the Bronx — a gambler, a fighter, a boy nobody expected much from. He spent his twenties pushing carts in the garment center and driving a cab on the night shift. Nothing in his early life suggested what would come next.
