@@ -7,7 +7,7 @@ I was eighteen years old. I just came out of the army reserves, and I needed a j
 
 Now, in the garment center, when they cut cloth, they'd have layers and layers and layers of it stacked up—maybe eight, ten inches high—and they would use a machine with a blade that went up and down. You'd follow a pattern on the top with the blade. But the blade would dull very rapidly, and they'd have to pull it out and sharpen it by hand. H. Maiman made a machine that had automatic sharpeners so the blade came out like a razor blade every time you push the button. That was their thing. That was what made them special.
 
-So they hired me right away even though I had no experience. The way they trained you is they put you in the factory for two weeks, and they showed you how to take the machine apart and put it back together. And then they sent you out into the field.
+So they hired me right away even though I had no experience. The way they trained you is they put you in the factory for two weeks, and they showed you how to take the machine apart and put it back together. And then they sent you out into the field. 
 
 I'd walk in and people would say, it doesn't cut. Well, I only knew how to take it apart and put it together, so that's what I did. I took it apart. But sometimes I didn't know how to put it back together, so the factory would have to send somebody to fix it. I did this for about two months on and off. I couldn't figure out what was up and what was down. But I finally learned—oh, this is why this doesn't work, that's why that doesn't work. And after a year, I was pretty good at it.
 
